@@ -15,31 +15,39 @@ class BannerController extends Controller
         return response()->json(Banner::all());
     }
 
-    // POST /api/banners (multi-image upload)
-    public function store(Request $request)
-    {
-        $request->validate([
-            'title' => 'required|string',
-            'images.*' => 'required|image|max:2048',
-            'link' => 'nullable|string',
-        ]);
+public function store(Request $request)
+{
+    $request->validate([
+        'title' => 'required|string',
+        'images.*' => 'required|image|max:2048',
+        'link' => 'nullable|string',
+    ]);
 
-        $imagePaths = [];
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('banners', 'public');
-                $imagePaths[] = Storage::url($path);
-            }
+    $imagePaths = [];
+
+    if ($request->hasFile('images')) {
+        foreach ($request->file('images') as $image) {
+            // Save file to 'public/banners' folder
+            $path = $image->store('banners', 'public');
+
+            // Convert to full URL (do NOT use Storage::url inside asset)
+            $imagePaths[] = asset('storage/' . $path); 
         }
-
-        $banner = Banner::create([
-            'title' => $request->title,
-            'images' => $imagePaths,
-            'link' => $request->link,
-        ]);
-
-        return response()->json($banner, 201);
     }
+
+    // Save banner record
+    $banner = Banner::create([
+        'title' => $request->title,
+        'images' => $imagePaths,
+        'link' => $request->link,
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Banner created successfully',
+        'data' => $banner
+    ], 201);
+}
 
     // PUT /api/banners/{id} - update title/link/images
     public function update(Request $request, $id)

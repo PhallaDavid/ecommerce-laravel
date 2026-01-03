@@ -24,6 +24,8 @@ class User extends Authenticatable
         'zip',
         'avatar',
         'images',
+        'verify_status',
+        'google_id',
     ];
 
     protected $hidden = [
@@ -46,7 +48,7 @@ class User extends Authenticatable
      */
     public function getVerifyStatusAttribute()
     {
-        return $this->email_verified_at ? 'completed' : 'pending';
+        return $this->attributes['verify_status'] ?? 'pending';
     }
 
     // User's favorites
