@@ -328,3 +328,4 @@ All endpoints return standard error responses:
 4. All endpoints support pagination where applicable
 5. Search functionality is available for users and products
 
+

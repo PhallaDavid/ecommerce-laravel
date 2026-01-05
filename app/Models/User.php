@@ -63,4 +63,147 @@ class User extends Authenticatable
     {
         return $this->hasMany(\App\Models\Cart::class);
     }
+
+    /**
+     * Get all roles for the user
+     */
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'user_role');
+    }
+
+    /**
+     * Get all permissions for the user (through roles)
+     */
+    public function permissions()
+    {
+        return $this->roles()
+            ->with('permissions')
+            ->get()
+            ->pluck('permissions')
+            ->flatten()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Check if user has specific role
+     */
+    public function hasRole($role)
+    {
+        if (is_string($role)) {
+            return $this->roles()->where('slug', $role)->exists();
+        }
+        
+        if ($role instanceof Role) {
+            return $this->roles()->where('roles.id', $role->id)->exists();
+        }
+        
+        return $this->roles()->where('roles.id', $role)->exists();
+    }
+
+    /**
+     * Check if user has specific permission
+     */
+    public function hasPermission($permission)
+    {
+        // Check direct permission through roles
+        if (is_string($permission)) {
+            return $this->roles()->whereHas('permissions', function ($query) use ($permission) {
+                $query->where('slug', $permission);
+            })->exists();
+        }
+        
+        if ($permission instanceof Permission) {
+            return $this->roles()->whereHas('permissions', function ($query) use ($permission) {
+                $query->where('permissions.id', $permission->id);
+            })->exists();
+        }
+        
+        if (is_numeric($permission)) {
+            return $this->roles()->whereHas('permissions', function ($query) use ($permission) {
+                $query->where('permissions.id', $permission);
+            })->exists();
+        }
+        
+        return false;
+    }
+
+    /**
+     * Assign role to user
+     */
+    public function assignRole($role)
+    {
+        if (is_string($role)) {
+            $role = Role::where('slug', $role)->first();
+        }
+        
+        if ($role instanceof Role) {
+            $this->roles()->syncWithoutDetaching([$role->id]);
+            return true;
+        }
+        
+        if (is_numeric($role)) {
+            $this->roles()->syncWithoutDetaching([$role]);
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Remove role from user
+     */
+    public function revokeRole($role)
+    {
+        if (is_string($role)) {
+            $role = Role::where('slug', $role)->first();
+        }
+        
+        if ($role instanceof Role) {
+            return $this->roles()->detach($role->id);
+        }
+        
+        if (is_numeric($role)) {
+            return $this->roles()->detach($role);
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if user has any of the given roles
+     */
+    public function hasAnyRole($roles)
+    {
+        if (!is_array($roles)) {
+            $roles = [$roles];
+        }
+        
+        foreach ($roles as $role) {
+            if ($this->hasRole($role)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if user has all given roles
+     */
+    public function hasAllRoles($roles)
+    {
+        if (!is_array($roles)) {
+            $roles = [$roles];
+        }
+        
+        foreach ($roles as $role) {
+            if (!$this->hasRole($role)) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
 }

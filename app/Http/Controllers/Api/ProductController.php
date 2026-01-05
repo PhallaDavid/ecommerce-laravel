@@ -41,6 +41,37 @@ class ProductController extends Controller
 
         return response()->json($products);
     }
+
+    public function productsByCategorySlug($slug)
+    {
+        $category = \App\Models\Category::where('slug', $slug)->first();
+
+        if (!$category) {
+            return response()->json(['message' => 'Category not found'], 404);
+        }
+
+        $products = Product::with('category')
+            ->where('category_id', $category->id)
+            ->get();
+
+        return response()->json([
+            'category' => $category,
+            'products' => $products
+        ]);
+    }
+
+    public function newArrivals()
+    {
+        $products = Product::with('category')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'message' => 'New arrivals fetched successfully',
+            'products' => $products
+        ]);
+    }
     public function promotion()
     {
         $now = now();
