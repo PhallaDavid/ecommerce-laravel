@@ -20,11 +20,11 @@ class ProductController extends Controller
 
     public function show($id)
     {
-        if (!is_numeric($id)) {
-            return response()->json(['message' => 'Product not found'], 404);
+        if (is_numeric($id)) {
+            $product = Product::with('category')->find($id);
+        } else {
+            $product = Product::with('category')->where('slug', $id)->first();
         }
-
-        $product = Product::with('category')->find($id);
 
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
@@ -58,6 +58,11 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        // Normalize category_id - convert empty string to null
+        if ($request->has('category_id') && $request->category_id === '') {
+            $request->merge(['category_id' => null]);
+        }
+
         $request->validate([
             'name' => 'required|string',
             'description' => 'nullable|string',
@@ -68,8 +73,8 @@ class ProductController extends Controller
             'images.*' => 'sometimes|image|max:2048',
             'sku' => 'nullable|string',
             'barcode' => 'nullable|string',
-            'featured' => 'nullable|boolean',
-            'is_active' => 'nullable|boolean',
+            'featured' => 'nullable',
+            'is_active' => 'nullable',
             'weight' => 'nullable|numeric',
             'length' => 'nullable|numeric',
             'width' => 'nullable|numeric',
@@ -90,7 +95,7 @@ class ProductController extends Controller
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('products', 'public');
-                $imagePaths[] = Storage::url($path);
+                $imagePaths[] = url(Storage::url($path));
             }
         }
 
@@ -112,29 +117,37 @@ class ProductController extends Controller
                 : 0;
         }
 
+        // Handle category_id - convert empty string to null
+        $categoryId = $request->category_id;
+        if ($categoryId === '' || $categoryId === null) {
+            $categoryId = null;
+        } else {
+            $categoryId = (int) $categoryId;
+        }
+
         $product = Product::create([
             'name' => $request->name,
             'slug' => $slug,
             'description' => $request->description,
             'price' => $request->price,
-            'sale_price' => $request->sale_price,
+            'sale_price' => $request->sale_price ?: null,
             'promotion_price' => $promotionPrice,
             'discount_percent' => $discountPercent,
             'stock' => $request->stock,
-            'category_id' => $request->category_id,
+            'category_id' => $categoryId,
             'images' => $imagePaths,
-            'sku' => $request->sku,
-            'barcode' => $request->barcode,
-            'featured' => $request->featured ?? 0,
-            'is_active' => $request->is_active ?? 1,
-            'weight' => $request->weight,
-            'length' => $request->length,
-            'width' => $request->width,
-            'height' => $request->height,
+            'sku' => $request->sku ?: null,
+            'barcode' => $request->barcode ?: null,
+            'featured' => $request->has('featured') ? ($request->featured === '1' || $request->featured === 1 ? 1 : 0) : 0,
+            'is_active' => $request->has('is_active') ? ($request->is_active === '1' || $request->is_active === 1 ? 1 : 0) : 1,
+            'weight' => $request->weight ?: null,
+            'length' => $request->length ?: null,
+            'width' => $request->width ?: null,
+            'height' => $request->height ?: null,
             'rating' => $request->rating ?? 0,
             'sold_count' => $request->sold_count ?? 0,
-            'promotion_start' => $request->promotion_start,
-            'promotion_end' => $request->promotion_end,
+            'promotion_start' => $request->promotion_start ?: null,
+            'promotion_end' => $request->promotion_end ?: null,
             'sizes' => $request->sizes ?? [],
             'colors' => $request->colors ?? [],
         ]);
@@ -152,6 +165,11 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
 
+        // Normalize category_id - convert empty string to null
+        if ($request->has('category_id') && $request->category_id === '') {
+            $request->merge(['category_id' => null]);
+        }
+
         $request->validate([
             'name' => 'sometimes|required|string',
             'description' => 'nullable|string',
@@ -160,20 +178,33 @@ class ProductController extends Controller
             'stock' => 'sometimes|required|integer',
             'category_id' => 'nullable|exists:categories,id',
             'images.*' => 'sometimes|image|max:2048',
+            'sku' => 'nullable|string',
+            'barcode' => 'nullable|string',
+            'featured' => 'nullable',
+            'is_active' => 'nullable',
+            'weight' => 'nullable|numeric',
+            'length' => 'nullable|numeric',
+            'width' => 'nullable|numeric',
+            'height' => 'nullable|numeric',
             'promotion_start' => 'nullable|date',
             'promotion_end' => 'nullable|date|after_or_equal:promotion_start',
+            'sizes' => 'nullable|array',
+            'sizes.*' => 'string|max:10',
+            'colors' => 'nullable|array',
+            'colors.*' => 'string|max:20',
         ]);
 
         // Handle images
         $imagePaths = $product->images ?? [];
         if ($request->hasFile('images')) {
             foreach ($imagePaths as $old) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $old));
+                $path = parse_url($old, PHP_URL_PATH);
+                Storage::disk('public')->delete(str_replace('/storage/', '', $path));
             }
             $imagePaths = [];
             foreach ($request->file('images') as $image) {
                 $path = $image->store('products', 'public');
-                $imagePaths[] = Storage::url($path);
+                $imagePaths[] = url(Storage::url($path));
             }
         }
 
@@ -189,22 +220,62 @@ class ProductController extends Controller
                 : 0;
         }
 
-        $product->update([
+        // Handle category_id - convert empty string to null
+        $categoryId = $request->has('category_id') ? $request->category_id : $product->category_id;
+        if ($categoryId === '' || $categoryId === null) {
+            $categoryId = null;
+        } else {
+            $categoryId = (int) $categoryId;
+        }
+
+        $updateData = [
             'name' => $request->name ?? $product->name,
             'slug' => $request->name ? Str::slug($request->name) : $product->slug,
             'description' => $request->description ?? $product->description,
             'price' => $price,
-            'sale_price' => $salePrice,
+            'sale_price' => $request->has('sale_price') ? ($request->sale_price ?: null) : $product->sale_price,
             'promotion_price' => $promotionPrice,
             'discount_percent' => $discountPercent,
             'stock' => $request->stock ?? $product->stock,
-            'category_id' => $request->category_id ?? $product->category_id,
+            'category_id' => $categoryId,
             'images' => $imagePaths,
-            'promotion_start' => $request->promotion_start ?? $product->promotion_start,
-            'promotion_end' => $request->promotion_end ?? $product->promotion_end,
-            'sizes' => $request->sizes ?? $product->sizes,
-            'colors' => $request->colors ?? $product->colors,
-        ]);
+            'sku' => $request->has('sku') ? ($request->sku ?: null) : $product->sku,
+            'barcode' => $request->has('barcode') ? ($request->barcode ?: null) : $product->barcode,
+            'weight' => $request->has('weight') ? ($request->weight ?: null) : $product->weight,
+            'length' => $request->has('length') ? ($request->length ?: null) : $product->length,
+            'width' => $request->has('width') ? ($request->width ?: null) : $product->width,
+            'height' => $request->has('height') ? ($request->height ?: null) : $product->height,
+            'promotion_start' => $request->has('promotion_start') ? ($request->promotion_start ?: null) : $product->promotion_start,
+            'promotion_end' => $request->has('promotion_end') ? ($request->promotion_end ?: null) : $product->promotion_end,
+        ];
+
+        // Handle sizes and colors arrays
+        if ($request->has('sizes')) {
+            $updateData['sizes'] = is_array($request->sizes) ? $request->sizes : ($request->sizes ? [$request->sizes] : []);
+        } else {
+            $updateData['sizes'] = $product->sizes ?? [];
+        }
+
+        if ($request->has('colors')) {
+            $updateData['colors'] = is_array($request->colors) ? $request->colors : ($request->colors ? [$request->colors] : []);
+        } else {
+            $updateData['colors'] = $product->colors ?? [];
+        }
+
+        // Handle featured and is_active - properly handle FormData strings "0"/"1"
+        if ($request->has('featured')) {
+            $updateData['featured'] = ($request->featured === '1' || $request->featured === 1 || $request->boolean('featured')) ? 1 : 0;
+        } else {
+            $updateData['featured'] = $product->featured ?? 0;
+        }
+
+        if ($request->has('is_active')) {
+            $updateData['is_active'] = ($request->is_active === '1' || $request->is_active === 1 || $request->boolean('is_active')) ? 1 : 0;
+        } else {
+            $updateData['is_active'] = $product->is_active ?? 1;
+        }
+
+        $product->update($updateData);
 
 
         $product->load('category');
@@ -344,7 +415,8 @@ class ProductController extends Controller
         $product = Product::findOrFail($id);
         if ($product->images) {
             foreach ($product->images as $img) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $img));
+                $path = parse_url($img, PHP_URL_PATH);
+                Storage::disk('public')->delete(str_replace('/storage/', '', $path));
             }
         }
         $product->delete();

@@ -27,14 +27,17 @@ Route::get('/orders/{orderId}/location', [DeliveryController::class, 'getLocatio
 // Categories
 Route::apiResource('categories', CategoryController::class);
 
-// Products
+// Products - Public routes
 Route::prefix('products')->group(function () {
     Route::get('/', [ProductController::class, 'index']);
     Route::get('/promotion', [ProductController::class, 'promotion']);
     Route::get('/search', [ProductSearchController::class, 'search']);
     Route::get('/category/{id}', [ProductController::class, 'productsByCategory']);
     Route::get('/{id}', [ProductController::class, 'show']);
+});
 
+// Products - Protected routes (require authentication)
+Route::middleware('auth:sanctum')->prefix('products')->group(function () {
     Route::post('/', [ProductController::class, 'store']);
     Route::put('/{id}', [ProductController::class, 'update']);
     Route::delete('/{id}', [ProductController::class, 'destroy']);
@@ -58,4 +61,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders', [OrderController::class, 'createOrder']);
     Route::get('/orders/history', [OrderController::class, 'history']);
     Route::get('/orders/{id}', [OrderController::class, 'getOrderById']);
+});
+
+// Admin Routes
+use App\Http\Controllers\AdminController;
+
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    // Dashboard Stats
+    Route::get('/dashboard/stats', [AdminController::class, 'dashboardStats']);
+
+    // Users Management
+    Route::get('/users', [AdminController::class, 'getUsers']);
+    Route::get('/users/{id}', [AdminController::class, 'getUser']);
+    Route::post('/users', [AdminController::class, 'createUser']);
+    Route::put('/users/{id}', [AdminController::class, 'updateUser']);
+    Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
+
+    // Products Management
+    Route::get('/products', [AdminController::class, 'getProducts']);
+    Route::post('/products', [AdminController::class, 'createProduct']);
+    Route::match(['put', 'post'], '/products/{id}', [AdminController::class, 'updateProduct']);
+    Route::delete('/products/{id}', [AdminController::class, 'deleteProduct']);
+
+    // Orders Management
+    Route::get('/orders', [AdminController::class, 'getOrders']);
+    Route::get('/orders/{id}', [AdminController::class, 'getOrder']);
+    Route::put('/orders/{id}/status', [AdminController::class, 'updateOrderStatus']);
 });

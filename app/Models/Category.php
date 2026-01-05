@@ -12,6 +12,17 @@ class Category extends Model
     protected $fillable = ['name', 'slug', 'description', 'parent_id', 'images'];
     protected $casts = ['images' => 'array'];
 
+    public function getImagesAttribute($value)
+    {
+        $images = json_decode($value, true) ?? [];
+        return array_map(function ($image) {
+            if (filter_var($image, FILTER_VALIDATE_URL)) {
+                return $image;
+            }
+            return asset(ltrim($image, '/'));
+        }, $images);
+    }
+
     public function children() { return $this->hasMany(Category::class, 'parent_id'); }
     public function parent() { return $this->belongsTo(Category::class, 'parent_id'); }
     public function products() { return $this->hasMany(Product::class); }

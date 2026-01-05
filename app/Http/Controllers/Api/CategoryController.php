@@ -83,8 +83,8 @@ class CategoryController extends Controller
         if ($request->hasFile('images')) {
             // Delete old images
             foreach ($imagePaths as $old) {
-                $oldPath = str_replace('/storage/', '', $old);
-                Storage::disk('public')->delete($oldPath);
+                $path = parse_url($old, PHP_URL_PATH);
+                Storage::disk('public')->delete(str_replace('/storage/', '', $path));
             }
 
             // Store new images
@@ -118,8 +118,8 @@ class CategoryController extends Controller
 
         if ($category->images) {
             foreach ($category->images as $img) {
-                $path = str_replace('/storage/', '', $img);
-                Storage::disk('public')->delete($path);
+                $path = parse_url($img, PHP_URL_PATH);
+                Storage::disk('public')->delete(str_replace('/storage/', '', $path));
             }
         }
 

@@ -21,6 +21,7 @@ public function store(Request $request)
         'title' => 'required|string',
         'images.*' => 'required|image|max:2048',
         'link' => 'nullable|string',
+        'is_active' => 'nullable|boolean',
     ]);
 
     $imagePaths = [];
@@ -30,8 +31,8 @@ public function store(Request $request)
             // Save file to 'public/banners' folder
             $path = $image->store('banners', 'public');
 
-            // Convert to full URL (do NOT use Storage::url inside asset)
-            $imagePaths[] = asset('storage/' . $path); 
+            // Convert to full URL
+            $imagePaths[] = url(Storage::url($path));
         }
     }
 
@@ -40,6 +41,7 @@ public function store(Request $request)
         'title' => $request->title,
         'images' => $imagePaths,
         'link' => $request->link,
+        'is_active' => $request->is_active ?? true,
     ]);
 
     return response()->json([
@@ -58,6 +60,7 @@ public function store(Request $request)
             'title' => 'sometimes|required|string',
             'images.*' => 'sometimes|image|max:2048',
             'link' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
         ]);
 
         // Handle new images
@@ -65,7 +68,8 @@ public function store(Request $request)
         if ($request->hasFile('images')) {
             // Optionally delete old images
             foreach ($imagePaths as $old) {
-                $oldPath = str_replace('/storage/', '', $old); // convert URL to storage path
+                $path = parse_url($old, PHP_URL_PATH);
+                $oldPath = str_replace('/storage/', '', $path);
                 if (Storage::disk('public')->exists($oldPath)) {
                     Storage::disk('public')->delete($oldPath);
                 }
@@ -74,7 +78,7 @@ public function store(Request $request)
             $imagePaths = [];
             foreach ($request->file('images') as $image) {
                 $path = $image->store('banners', 'public');
-                $imagePaths[] = Storage::url($path);
+                $imagePaths[] = url(Storage::url($path));
             }
         }
 
@@ -82,6 +86,7 @@ public function store(Request $request)
             'title' => $request->title ?? $banner->title,
             'images' => $imagePaths,
             'link' => $request->link ?? $banner->link,
+            'is_active' => $request->has('is_active') ? $request->is_active : $banner->is_active,
         ]);
 
         return response()->json($banner);
@@ -95,9 +100,10 @@ public function store(Request $request)
         // Delete images from storage
         if ($banner->images) {
             foreach ($banner->images as $img) {
-                $path = str_replace('/storage/', '', $img);
-                if (Storage::disk('public')->exists($path)) {
-                    Storage::disk('public')->delete($path);
+                $path = parse_url($img, PHP_URL_PATH);
+                $storagePath = str_replace('/storage/', '', $path);
+                if (Storage::disk('public')->exists($storagePath)) {
+                    Storage::disk('public')->delete($storagePath);
                 }
             }
         }

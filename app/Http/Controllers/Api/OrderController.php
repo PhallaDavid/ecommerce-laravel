@@ -17,6 +17,28 @@ class OrderController extends Controller
             'products' => 'required|array',
             'products.*.id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|integer|min:1',
+            'payment_method' => 'required|string',
+            'billing_address' => 'required|array',
+            'billing_address.firstName' => 'nullable|string',
+            'billing_address.lastName' => 'nullable|string',
+            'billing_address.email' => 'required|email',
+            'billing_address.phone' => 'nullable|string',
+            'billing_address.address' => 'nullable|string',
+            'billing_address.city' => 'nullable|string',
+            'billing_address.state' => 'nullable|string',
+            'billing_address.zipCode' => 'nullable|string',
+            'billing_address.country' => 'required|string',
+            'shipping_address' => 'required|array',
+            'shipping_address.firstName' => 'nullable|string',
+            'shipping_address.lastName' => 'nullable|string',
+            'shipping_address.email' => 'required|email',
+            'shipping_address.phone' => 'nullable|string',
+            'shipping_address.address' => 'nullable|string',
+            'shipping_address.city' => 'nullable|string',
+            'shipping_address.state' => 'nullable|string',
+            'shipping_address.zipCode' => 'nullable|string',
+            'shipping_address.country' => 'required|string',
+            'notes' => 'nullable|string',
         ]);
 
         $user = $request->user();
@@ -40,6 +62,10 @@ class OrderController extends Controller
             'user_id' => $user->id,
             'total' => $total,
             'status' => 'pending',
+            'payment_method' => $request->payment_method,
+            'billing_address' => $request->billing_address,
+            'shipping_address' => $request->shipping_address,
+            'notes' => $request->notes,
         ]);
 
         foreach ($orderItems as $item) {

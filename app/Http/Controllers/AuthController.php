@@ -130,6 +130,7 @@ class AuthController extends Controller
                 'id'            => $user->id,
                 'name'          => $user->name,
                 'email'         => $user->email,
+                'role'          => $user->role ?? 'user',
                 'verify_status' => $user->verify_status,
                 'created_at'    => $user->created_at,
                 'updated_at'    => $user->updated_at,
@@ -223,7 +224,9 @@ class AuthController extends Controller
         ]);
 
         // Get user info from Google
-        $response = Http::get('https://www.googleapis.com/oauth2/v2/userinfo', [
+        $response = Http::withOptions([
+            'verify' => storage_path('app/cacert.pem'),
+        ])->get('https://www.googleapis.com/oauth2/v2/userinfo', [
             'access_token' => $request->access_token,
         ]);
 
