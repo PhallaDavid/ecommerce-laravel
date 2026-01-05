@@ -18,9 +18,10 @@ Route::post('/login',    [AuthController::class, 'login']);
 Route::post('/send-otp', [AuthController::class, 'sendOtp']);
 Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
+Route::get('/user', [AuthController::class, 'user']);
 Route::get('/products/{id}/reviews', [ReviewController::class, 'index']);
 Route::post('/products/{id}/reviews', [ReviewController::class, 'store'])->middleware('auth:sanctum');
-Route::apiResource('banners', BannerController::class)->except(['show']);
+Route::apiResource('banners', BannerController::class);
 Route::post('/orders/{orderId}/location', [DeliveryController::class, 'updateLocation']);
 Route::get('/orders/{orderId}/location', [DeliveryController::class, 'getLocation']);
 
@@ -46,7 +47,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout',  [AuthController::class, 'logout']);
     Route::get('/profile',  [AuthController::class, 'profile']);
     Route::post('/profile/update', [AuthController::class, 'updateProfile']);
-    Route::get('/user', fn(Request $request) => $request->user());
     Route::post('products/{productId}/favorite', [ProductController::class, 'addFavorite']);
     Route::delete('products/{productId}/favorite', [ProductController::class, 'removeFavorite']);
     Route::get('products/favorites', [ProductController::class, 'favorites']);

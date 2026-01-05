@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Otp;
 use App\Mail\OtpMail;
+use App\Helpers\Telegram;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
@@ -13,9 +14,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-
 class AuthController extends Controller
-{
+{   
+    public function user(Request $request)
+    {
+        $users = User::all();
+        return response()->json([
+            'message' => 'Users retrieved successfully',
+            'users'   => $users,
+        ]);
+    }
 
     public function register(Request $request)
     {
@@ -42,6 +50,15 @@ class AuthController extends Controller
             $message->to($user->email)
                 ->subject('Verify your email with OTP');
         });
+
+        // Send Telegram notification for new user registration
+        $telegramMessage = "🆕 <b>New User Registration</b>\n\n" .
+                          "👤 Name: {$user->name}\n" .
+                          "📧 Email: {$user->email}\n" .
+                          "⏰ Time: " . now()->format('Y-m-d H:i:s') . "\n" .
+                          "🔒 Status: Awaiting OTP verification";
+
+        Telegram::sendMessage(env('TELEGRAM_CHAT_ID'), $telegramMessage);
 
         // Generate token
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -121,6 +138,15 @@ class AuthController extends Controller
 
         $user  = Auth::user();
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Send Telegram notification for user login (to second group only)
+        $loginMessage = "🔐 <b>User Login</b>\n\n" .
+                       "👤 Name: {$user->name}\n" .
+                       "📧 Email: {$user->email}\n" .
+                       "⏰ Time: " . now()->format('Y-m-d H:i:s') . "\n" .
+                       "✅ Status: Login successful";
+
+        Telegram::sendToChat(env('TELEGRAM_CHAT_ID_2'), $loginMessage);
 
         return response()->json([
             'status'  => true,
@@ -255,6 +281,15 @@ class AuthController extends Controller
 
         // Generate token
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Send Telegram notification for Google login
+        $googleLoginMessage = "🌐 <b>Google Login</b>\n\n" .
+                             "👤 Name: {$user->name}\n" .
+                             "📧 Email: {$user->email}\n" .
+                             "⏰ Time: " . now()->format('Y-m-d H:i:s') . "\n" .
+                             "✅ Status: Google login successful";
+
+        Telegram::sendMessage(env('TELEGRAM_CHAT_ID'), $googleLoginMessage);
 
         return response()->json([
             'status' => true,

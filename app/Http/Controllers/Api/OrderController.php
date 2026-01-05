@@ -15,7 +15,8 @@ class OrderController extends Controller
     {
         $request->validate([
             'products' => 'required|array',
-            'products.*.id' => 'required|exists:products,id',
+'products.*.id' => 'required|exists:products,id',
+
             'products.*.quantity' => 'required|integer|min:1',
             'payment_method' => 'required|string',
             'billing_address' => 'required|array',
@@ -39,6 +40,7 @@ class OrderController extends Controller
             'shipping_address.zipCode' => 'nullable|string',
             'shipping_address.country' => 'required|string',
             'notes' => 'nullable|string',
+            
         ]);
 
         $user = $request->user();
@@ -71,18 +73,21 @@ class OrderController extends Controller
         foreach ($orderItems as $item) {
             $order->items()->create($item);
         }
-        $message = "<b>🛒 New Order #{$order->id}</b>\n";
-        $message .= "<b>Payment Method:</b> {$request->payment_method}\n";
-        $message .= "<b>User:</b> {$user->name} ({$user->email})\n";
-        $message .= "<b>Total:</b> $total\n";
-        $message .= "<b>Items:</b>\n";
+        // Send Telegram notification for new order (to first group only)
+        $message = "🛒 <b>New Order #{$order->id}</b>\n\n";
+        $message .= "👤 Customer: {$user->name}\n";
+        $message .= "📧 Email: {$user->email}\n";
+        $message .= "💳 Payment: {$request->payment_method}\n";
+        $message .= "💰 Total: \${$total}\n";
+        $message .= "📦 Items:\n";
+
         foreach ($order->items as $item) {
-            $message .= "• {$item->name} x{$item->quantity} - {$item->price}\n";
+            $message .= "• {$item->product->name} x{$item->quantity} = \${$item->price}\n";
         }
-        foreach ($order->items as $item) {
-            $message .= "- {$item->product->name} x {$item->quantity} = {$item->price}\n";
-        }
-        Telegram::sendMessage(env('TELEGRAM_CHAT_ID'), $message);
+
+        $message .= "\n⏰ Time: " . now()->format('Y-m-d H:i:s');
+
+        Telegram::sendToChat(env('TELEGRAM_CHAT_ID'), $message);
 
         return response()->json([
             'message' => 'Order created successfully',

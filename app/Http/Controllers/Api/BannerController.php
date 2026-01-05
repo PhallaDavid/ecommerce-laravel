@@ -9,10 +9,21 @@ use Illuminate\Support\Facades\Storage;
 
 class BannerController extends Controller
 {
-    // GET /api/banners
     public function index()
     {
-        return response()->json(Banner::all());
+        return response()->json([
+            'message' => 'Banners retrieved successfully',
+            'data' => Banner::all()
+        ]);
+    }
+
+    public function show($id)
+    {
+        $banner = Banner::findOrFail($id);
+        return response()->json([
+            'message' => 'Banner retrieved successfully',
+            'data' => $banner
+        ]);
     }
 
 public function store(Request $request)
